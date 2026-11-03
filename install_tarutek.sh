@@ -151,6 +151,39 @@ else
     echo "${MQTT_LINE}" >> "${MQTT_CONF}"
 fi
  
+# ---------------------------------------------------------------------------
+# Mosquitto MQTT broker (install, configure, enable, start)
+# ---------------------------------------------------------------------------
+MOSQ_CONF="/etc/mosquitto/mosquitto.conf"
+ 
+echo "Installing Mosquitto..."
+apt install -y mosquitto
+ 
+echo "Configuring ${MOSQ_CONF}..."
+touch "${MOSQ_CONF}"
+cp -a "${MOSQ_CONF}" "${MOSQ_CONF}.bak.$(date +%Y%m%d%H%M%S)"
+ 
+# Remove any active copies of these lines, then append them in the right order
+# ("allow_anonymous" must come after "listener" to apply to that listener).
+sed -i -E '/^[[:space:]]*allow_anonymous[[:space:]]/d' "${MOSQ_CONF}"
+sed -i -E '/^[[:space:]]*listener[[:space:]]+1883([[:space:]]|$)/d' "${MOSQ_CONF}"
+{
+    echo "listener 1883 127.0.0.1"
+    echo "allow_anonymous true"
+} >> "${MOSQ_CONF}"
+ 
+echo "Enabling and starting Mosquitto..."
+systemctl enable mosquitto
+systemctl restart mosquitto
+ 
+sleep 1
+if systemctl is-active --quiet mosquitto; then
+    echo "Mosquitto service is running."
+else
+    echo "WARNING: Mosquitto service is not running. Recent log:"
+    journalctl -u mosquitto -n 20 --no-pager || true
+fi
+ 
 echo "Restarting TaruTek agents..."
 systemctl enable zabbix-agent2
 systemctl restart zabbix-agent2
@@ -232,4 +265,3 @@ echo "=============================================================="
 echo
  
 echo "TaruTek install complete."
- 
