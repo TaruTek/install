@@ -86,8 +86,8 @@ CONF="/etc/zabbix/zabbix_agent2.conf"
 echo "Configuring ${CONF}..."
 cp -a "${CONF}" "${CONF}.bak.$(date +%Y%m%d%H%M%S)"
 
-set_kv "${CONF}" "Server"        "ciq.tarutek.com,127.0.0.1"
-set_kv "${CONF}" "ServerActive"  "ciq.tarutek.com,127.0.0.1"
+set_kv "${CONF}" "Server"        "127.0.0.1,ciq.tarutek.com"
+set_kv "${CONF}" "ServerActive"  "127.0.0.1,ciq.tarutek.com"
 set_kv "${CONF}" "HostnameItem"  "system.hostname"
 
 # Hostname must stay commented out (HostnameItem is used instead)
