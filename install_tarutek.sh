@@ -227,7 +227,7 @@ echo " TaruTek Proxy - PSK details (use these to configure the proxy)"
 echo "=============================================================="
 echo " PSK Identity : ${BOLD}${PROXY_HOSTNAME}${RESET}"
 echo " PSK Key      : ${BOLD}${PSK_VALUE}${RESET}"
-echo " PSK File     : ${PSK_FILE}"
+echo " HOST Name    : ${BOLD}$(hostname)${RESET}"
 echo "=============================================================="
 echo
  
