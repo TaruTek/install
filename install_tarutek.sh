@@ -184,6 +184,9 @@ else
     journalctl -u mosquitto -n 20 --no-pager || true
 fi
  
+echo "Adding zabbix user to video and render groups..."
+usermod -aG video,render zabbix
+
 echo "Restarting TaruTek agents..."
 systemctl enable zabbix-agent2
 systemctl restart zabbix-agent2
@@ -206,7 +209,6 @@ set_kv "${PROXY_CONF}" "HostnameItem"         "system.hostname"
  
 set_kv "${PROXY_CONF}" "DBName"               "${DB_DIR}/zabbix_proxy.sqlite"
 set_kv "${PROXY_CONF}" "ProxyOfflineBuffer"   "48"
-set_kv "${PROXY_CONF}" "EnableRemoteCommands" "1"
  
 # PSK encryption (identity = this system's hostname)
 set_kv "${PROXY_CONF}" "TLSConnect"           "psk"
@@ -231,6 +233,9 @@ fi
 chown zabbix:zabbix "${PSK_FILE}"
 chmod 600 "${PSK_FILE}"
  
+# Enable remote commands (adds/updates EnableRemoteCommands=1) before the proxy starts
+set_kv "${PROXY_CONF}" "EnableRemoteCommands" "1"
+
 echo "Enabling and starting TaruTek proxy..."
 systemctl enable zabbix-proxy
 systemctl restart zabbix-proxy
