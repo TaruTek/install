@@ -158,7 +158,7 @@ MOSQ_CONF="/etc/mosquitto/mosquitto.conf"
  
 echo "Installing Mosquitto..."
 apt install -y mosquitto
- 
+apt install -y mosquitto-clients 
 echo "Configuring ${MOSQ_CONF}..."
 touch "${MOSQ_CONF}"
 cp -a "${MOSQ_CONF}" "${MOSQ_CONF}.bak.$(date +%Y%m%d%H%M%S)"
