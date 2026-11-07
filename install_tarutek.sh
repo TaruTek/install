@@ -13,9 +13,11 @@ REPO_VERSION="8.0"
 REPO_PKG="zabbix-release_latest_${REPO_VERSION}+debian13_all.deb"
 REPO_URL="https://repo.zabbix.com/zabbix/${REPO_VERSION}/release/raspbian/pool/main/z/zabbix-release/${REPO_PKG}"
 
-# PSK settings shared by the agent and the proxy (same key file, same identity)
-PSK_FILE="/etc/zabbix/zabbix_proxy.psk"
-PROXY_HOSTNAME="$(hostname)"
+# PSK settings: separate key file and identity for the proxy and for agent2
+PROXY_PSK_FILE="/etc/zabbix/zabbix_proxy.psk"
+AGENT_PSK_FILE="/etc/zabbix/zabbix_agent2.psk"
+PROXY_PSK_ID="$(hostname)_proxy"
+AGENT_PSK_ID="$(hostname)_agent"
 
 # Must run as root (or via sudo)
 if [[ $EUID -ne 0 ]]; then
@@ -282,21 +284,27 @@ MQTT_CONF="/etc/zabbix/zabbix_agent2.d/plugins.d/mqtt.conf"
 MQTT_LINE="Plugins.MQTT.Sessions.TaruTek.Url=tcp://localhost"
 
 mkdir -p "${AGENT_D_DIR}" "$(dirname "${MQTT_CONF}")"
-AGENT_SUM_BEFORE="$(fsum "${CONF}" "${TARUTEK_CONF}" "${MQTT_CONF}" "${PSK_FILE}")"
+AGENT_SUM_BEFORE="$(fsum "${CONF}" "${TARUTEK_CONF}" "${MQTT_CONF}" "${AGENT_PSK_FILE}")"
 AGENT_RESTART=0
 
-# 64-character hex PSK (256-bit). An existing valid key is kept so that
-# re-running this script does not break an already registered agent/proxy.
-# Created here, before the agent is configured, because the agent's
-# TLSPSKFile must exist when the agent service starts.
-if [[ -s "${PSK_FILE}" ]] && grep -qE '^[0-9a-fA-F]{64}$' "${PSK_FILE}"; then
-    exists "PSK key in ${PSK_FILE}"
-else
-    ( umask 077; openssl rand -hex 32 > "${PSK_FILE}" )
-    acted "PSK key in ${PSK_FILE}" "generated new 256-bit key"
-fi
-ensure_owner "${PSK_FILE}" "zabbix:zabbix"
-ensure_mode  "${PSK_FILE}" "600"
+# ensure_psk_file FILE : 64-character hex PSK (256-bit). An existing valid key
+# is kept so that re-running this script does not break a registered agent/proxy.
+ensure_psk_file() {
+    local f="$1"
+    if [[ -s "${f}" ]] && grep -qE '^[0-9a-fA-F]{64}$' "${f}"; then
+        exists "PSK key in ${f}"
+    else
+        ( umask 077; openssl rand -hex 32 > "${f}" )
+        acted "PSK key in ${f}" "generated new 256-bit key"
+    fi
+    ensure_owner "${f}" "zabbix:zabbix"
+    ensure_mode  "${f}" "600"
+}
+
+# Both key files are created here, before the agent and proxy are configured,
+# because each TLSPSKFile must exist when its service starts.
+ensure_psk_file "${AGENT_PSK_FILE}"
+ensure_psk_file "${PROXY_PSK_FILE}"
 
 ensure_kv "${CONF}" "Server"        "127.0.0.1,ciq.tarutek.com"
 ensure_kv "${CONF}" "ServerActive"  "127.0.0.1,ciq.tarutek.com"
@@ -304,11 +312,11 @@ ensure_kv "${CONF}" "HostnameItem"  "system.hostname"
 ensure_hostname_commented "${CONF}"
 ensure_line "${CONF}" "AllowKey=system.run[*]" "AllowKey=system.run[*]"
 
-# PSK encryption (same configuration and same PSK file as the proxy)
+# PSK encryption (own key file and identity)
 ensure_kv "${CONF}" "TLSConnect"     "psk"
 ensure_kv_commented "${CONF}" "TLSAccept" "psk"   # hashed (commented out) on the agent
-ensure_kv "${CONF}" "TLSPSKIdentity" "${PROXY_HOSTNAME}"
-ensure_kv "${CONF}" "TLSPSKFile"     "${PSK_FILE}"
+ensure_kv "${CONF}" "TLSPSKIdentity" "${AGENT_PSK_ID}"
+ensure_kv "${CONF}" "TLSPSKFile"     "${AGENT_PSK_FILE}"
 
 # ---- Custom user parameters (Raspberry Pi metrics) ------------------------
 section "4. TaruTek custom user parameters (${TARUTEK_CONF})"
@@ -372,7 +380,7 @@ else
     acted "MQTT session" "added ${MQTT_LINE}"
 fi
 
-AGENT_SUM_AFTER="$(fsum "${CONF}" "${TARUTEK_CONF}" "${MQTT_CONF}" "${PSK_FILE}")"
+AGENT_SUM_AFTER="$(fsum "${CONF}" "${TARUTEK_CONF}" "${MQTT_CONF}" "${AGENT_PSK_FILE}")"
 [[ "${AGENT_SUM_BEFORE}" != "${AGENT_SUM_AFTER}" ]] && AGENT_RESTART=1
 
 # ===========================================================================
@@ -434,7 +442,7 @@ ensure_service "zabbix-agent2" "TaruTek agent" "${AGENT_RESTART}"
 section "8. TaruTek proxy configuration"
 
 PROXY_CONF="/etc/zabbix/zabbix_proxy.conf"
-PROXY_SUM_BEFORE="$(fsum "${PROXY_CONF}" "${PSK_FILE}")"
+PROXY_SUM_BEFORE="$(fsum "${PROXY_CONF}" "${PROXY_PSK_FILE}")"
 
 ensure_kv "${PROXY_CONF}" "Server" "ciq.tarutek.com"
 ensure_hostname_commented "${PROXY_CONF}"
@@ -442,19 +450,19 @@ ensure_kv "${PROXY_CONF}" "HostnameItem"       "system.hostname"
 ensure_kv "${PROXY_CONF}" "DBName"             "${DB_DIR}/zabbix_proxy.sqlite"
 ensure_kv "${PROXY_CONF}" "ProxyOfflineBuffer" "48"
 
-# PSK encryption (identity = this system's hostname)
+# PSK encryption (identity = <hostname>_proxy)
 ensure_kv "${PROXY_CONF}" "TLSConnect"     "psk"
 ensure_kv "${PROXY_CONF}" "TLSAccept"      "psk"
-ensure_kv "${PROXY_CONF}" "TLSPSKIdentity" "${PROXY_HOSTNAME}"
-ensure_kv "${PROXY_CONF}" "TLSPSKFile"     "${PSK_FILE}"
+ensure_kv "${PROXY_CONF}" "TLSPSKIdentity" "${PROXY_PSK_ID}"
+ensure_kv "${PROXY_CONF}" "TLSPSKFile"     "${PROXY_PSK_FILE}"
 
 ensure_mode "${PROXY_CONF}" "755"
 
-# The PSK file itself is created in section 3 (shared with the agent).
+# The proxy PSK file is created in section 3.
 
 ensure_kv "${PROXY_CONF}" "EnableRemoteCommands" "1"
 
-PROXY_SUM_AFTER="$(fsum "${PROXY_CONF}" "${PSK_FILE}")"
+PROXY_SUM_AFTER="$(fsum "${PROXY_CONF}" "${PROXY_PSK_FILE}")"
 PROXY_RESTART=0
 [[ "${PROXY_SUM_BEFORE}" != "${PROXY_SUM_AFTER}" ]] && PROXY_RESTART=1
 ensure_service "zabbix-proxy" "TaruTek proxy" "${PROXY_RESTART}"
@@ -462,7 +470,8 @@ ensure_service "zabbix-proxy" "TaruTek proxy" "${PROXY_RESTART}"
 # ===========================================================================
 # Summary and PSK details
 # ===========================================================================
-PSK_VALUE="$(tr -d '[:space:]' < "${PSK_FILE}")"
+PROXY_PSK_VALUE="$(tr -d '[:space:]' < "${PROXY_PSK_FILE}")"
+AGENT_PSK_VALUE="$(tr -d '[:space:]' < "${AGENT_PSK_FILE}")"
 
 echo
 echo "=============================================================="
@@ -470,11 +479,19 @@ echo " Summary: ${N_EXIST} already existed (no action), ${N_ACTION} actions take
 echo "=============================================================="
 echo
 echo "=============================================================="
-echo " TaruTek Proxy and Agent - PSK details (shared key, use to configure the server side)"
-echo "=============================================================="
-echo " PSK Identity : ${BOLD}${PROXY_HOSTNAME}${RESET}"
-echo " PSK Key      : ${BOLD}${PSK_VALUE}${RESET}"
+echo " TaruTek PSK details (use these to configure the server side)"
+echo "==============================================================="
 echo " HOST Name    : ${BOLD}$(hostname)${RESET}"
+echo
+echo " [Proxy]"
+echo " PSK Identity : ${BOLD}${PROXY_PSK_ID}${RESET}"
+echo " PSK Key      : ${BOLD}${PROXY_PSK_VALUE}${RESET}"
+echo " PSK File     : ${PROXY_PSK_FILE}"
+echo
+echo " [Agent2]"
+echo " PSK Identity : ${BOLD}${AGENT_PSK_ID}${RESET}"
+echo " PSK Key      : ${BOLD}${AGENT_PSK_VALUE}${RESET}"
+echo " PSK File     : ${AGENT_PSK_FILE}"
 echo "=============================================================="
 echo
 
