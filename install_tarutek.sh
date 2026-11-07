@@ -480,18 +480,16 @@ echo "=============================================================="
 echo
 echo "=============================================================="
 echo " TaruTek PSK details (use these to configure the server side)"
-echo "==============================================================="
+echo "=============================================================="
 echo " HOST Name    : ${BOLD}$(hostname)${RESET}"
 echo
 echo " [Proxy]"
 echo " PSK Identity : ${BOLD}${PROXY_PSK_ID}${RESET}"
 echo " PSK Key      : ${BOLD}${PROXY_PSK_VALUE}${RESET}"
-echo " PSK File     : ${PROXY_PSK_FILE}"
 echo
-echo " [Agent2]"
+echo " [Agent]"
 echo " PSK Identity : ${BOLD}${AGENT_PSK_ID}${RESET}"
 echo " PSK Key      : ${BOLD}${AGENT_PSK_VALUE}${RESET}"
-echo " PSK File     : ${AGENT_PSK_FILE}"
 echo "=============================================================="
 echo
 
