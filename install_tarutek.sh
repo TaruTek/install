@@ -205,12 +205,12 @@ ensure_service() {
 # ===========================================================================
 # 1. Repository and packages
 # ===========================================================================
-section "1. GO3C repository and packages"
+section "1. TaruTek repository and packages"
 
 REPO_INSTALLED_VER="$(dpkg-query -W -f='${Version}' zabbix-release 2>/dev/null || true)"
 
 if pkg_installed zabbix-release && [[ "${REPO_INSTALLED_VER}" == *"${REPO_VERSION}"* ]]; then
-    exists "GO3C ${REPO_VERSION} repository package (zabbix-release ${REPO_INSTALLED_VER})"
+    exists "TaruTek ${REPO_VERSION} repository package (zabbix-release ${REPO_INSTALLED_VER})"
 else
     if [[ -n "${REPO_INSTALLED_VER}" ]]; then
         info "Installed repository package is ${REPO_INSTALLED_VER}, switching to ${REPO_VERSION}"
@@ -220,7 +220,7 @@ else
     rm -f "/tmp/${REPO_PKG}"
     APT_UPDATED=0
     apt_update_once
-    acted "GO3C ${REPO_VERSION} repository package (zabbix-release)" "downloaded, installed and package lists updated"
+    acted "TaruTek ${REPO_VERSION} repository package (zabbix-release)" "downloaded, installed and package lists updated"
 fi
 
 ensure_pkg "zabbix-agent2"         "TaruTek agent"
