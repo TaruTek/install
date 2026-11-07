@@ -125,6 +125,22 @@ ensure_hostname_commented() {
     fi
 }
 
+# ensure_kv_commented FILE KEY VALUE : keep "KEY=VALUE" present but commented out (#KEY=VALUE)
+ensure_kv_commented() {
+    local file="$1" key="$2" val="$3"
+    if grep -qE "^${key}=" "${file}"; then
+        backup_once "${file}"
+        sed -i -E "s|^${key}=|#${key}=|" "${file}"
+        acted "${key} in ${file}" "commented out"
+    elif grep -qxF -- "#${key}=${val}" "${file}"; then
+        exists "#${key}=${val} is commented out in ${file}"
+    else
+        backup_once "${file}"
+        echo "#${key}=${val}" >> "${file}"
+        acted "${key} in ${file}" "added as commented line"
+    fi
+}
+
 # ensure_line FILE LINE LABEL : exact line must exist (repeatable keys, e.g. AllowKey)
 ensure_line() {
     local file="$1" line="$2" label="$3"
@@ -290,7 +306,7 @@ ensure_line "${CONF}" "AllowKey=system.run[*]" "AllowKey=system.run[*]"
 
 # PSK encryption (same configuration and same PSK file as the proxy)
 ensure_kv "${CONF}" "TLSConnect"     "psk"
-ensure_kv "${CONF}" "TLSAccept"      "psk"
+ensure_kv_commented "${CONF}" "TLSAccept" "psk"   # hashed (commented out) on the agent
 ensure_kv "${CONF}" "TLSPSKIdentity" "${PROXY_HOSTNAME}"
 ensure_kv "${CONF}" "TLSPSKFile"     "${PSK_FILE}"
 
