@@ -307,8 +307,8 @@ ensure_psk_file() {
 ensure_psk_file "${AGENT_PSK_FILE}"
 ensure_psk_file "${PROXY_PSK_FILE}"
 
-ensure_kv "${CONF}" "Server"        "127.0.0.1,ciq.tarutek.com"
-ensure_kv "${CONF}" "ServerActive"  "127.0.0.1,ciq.tarutek.com"
+ensure_kv "${CONF}" "Server"        "127.0.0.1"
+ensure_kv "${CONF}" "ServerActive"  "ciq.tarutek.com"
 ensure_kv "${CONF}" "HostnameItem"  "system.hostname"
 ensure_hostname_commented "${CONF}"
 ensure_line "${CONF}" "AllowKey=system.run[*]" "AllowKey=system.run[*]"
