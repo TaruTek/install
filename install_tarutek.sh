@@ -17,6 +17,7 @@ REPO_URL="https://repo.zabbix.com/zabbix/${REPO_VERSION}/release/raspbian/pool/m
 PROXY_PSK_FILE="/etc/zabbix/zabbix_proxy.psk"
 AGENT_PSK_FILE="/etc/zabbix/zabbix_agent2.psk"
 PROXY_PSK_ID="$(hostname)_proxy"
+PROXY_NAME="$(hostname)-IoT"
 AGENT_PSK_ID="$(hostname)_agent"
 
 # Must run as root (or via sudo)
@@ -445,8 +446,10 @@ PROXY_CONF="/etc/zabbix/zabbix_proxy.conf"
 PROXY_SUM_BEFORE="$(fsum "${PROXY_CONF}" "${PROXY_PSK_FILE}")"
 
 ensure_kv "${PROXY_CONF}" "Server" "ciq.tarutek.com"
-ensure_hostname_commented "${PROXY_CONF}"
-ensure_kv "${PROXY_CONF}" "HostnameItem"       "system.hostname"
+# Proxy name as registered on the server: <hostname>-IoT
+# (Hostname overrides HostnameItem, so HostnameItem is kept commented out)
+ensure_kv "${PROXY_CONF}" "Hostname"           "${PROXY_NAME}"
+ensure_kv_commented "${PROXY_CONF}" "HostnameItem" "system.hostname"
 ensure_kv "${PROXY_CONF}" "DBName"             "${DB_DIR}/zabbix_proxy.sqlite"
 ensure_kv "${PROXY_CONF}" "ProxyOfflineBuffer" "48"
 
